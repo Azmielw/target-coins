@@ -58,7 +58,17 @@ main .wrap{padding-block:18px 60px;display:flex;flex-direction:column;gap:18px}
 .tile .val{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;word-break:break-word}
 .tile .sub{font-size:12px;color:var(--ink-2);margin-top:2px}
 .tile.t-due .val{color:var(--due)} .tile.t-ok .val{color:var(--ok)} .tile.t-owe .val{color:var(--late)}
-@media (max-width:560px){.tiles{grid-template-columns:1fr 1fr}.tile.t-owe{grid-column:1/-1}}
+.tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+.tile.t-net{background:var(--navy);border-color:var(--navy);color:var(--navy-ink)}
+.tile.t-net .lbl,.tile.t-net .sub{color:var(--navy-ink);opacity:.8}
+.tile.t-net .val{font-size:16px}
+@media (max-width:700px){.tiles{grid-template-columns:1fr 1fr}}
+.dir{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dir button{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 8px;cursor:pointer;font-weight:700;font-size:16px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:2px}
+.dir button small{font-weight:500;font-size:12px}
+.dir button[aria-pressed="true"][data-dir="orders"]{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}
+.dir button[aria-pressed="true"][data-dir="debts"]{border-color:var(--late);background:var(--late-soft);color:var(--late)}
+.net{font-weight:700}.net.plus{color:var(--ok)}.net.minus{color:var(--late)}
 
 /* tabs */
 .tabs{display:flex;gap:6px;background:var(--surface-2);padding:5px;border-radius:999px;width:fit-content;max-width:100%}
@@ -162,14 +172,15 @@ textarea{resize:vertical;min-height:42px}
     <div id="notice" class="notice" hidden></div>
 
     <section class="tiles" aria-label="الملخص">
-      <div class="tile t-due"><div class="lbl">إلي عند الزباين (لسى)</div><div class="val" id="sumDue">0 ₪</div><div class="sub" id="sumDueSub">—</div></div>
+      <div class="tile t-due"><div class="lbl">بدي من الناس (لسى)</div><div class="val" id="sumDue">0 ₪</div><div class="sub" id="sumDueSub">—</div></div>
       <div class="tile t-ok"><div class="lbl">انقبض (تم)</div><div class="val" id="sumOk">0 ₪</div><div class="sub" id="sumOkSub">—</div></div>
-      <div class="tile t-owe"><div class="lbl">عليّ للناس (لسى)</div><div class="val" id="sumOwe">0 ₪</div><div class="sub" id="sumOweSub">—</div></div>
+      <div class="tile t-owe"><div class="lbl">بدهم مني (لسى)</div><div class="val" id="sumOwe">0 ₪</div><div class="sub" id="sumOweSub">—</div></div>
+      <div class="tile t-net"><div class="lbl">الجرد الصافي</div><div class="val" id="sumNet">خالصين</div><div class="sub">اللي بدك ناقص اللي عليك</div></div>
     </section>
 
     <div class="tabs" role="tablist">
-      <button class="tab" role="tab" id="tab-orders" aria-selected="true" data-tab="orders">طلبات الشحن <span class="count" id="cntOrders">0</span></button>
-      <button class="tab" role="tab" id="tab-debts" aria-selected="false" data-tab="debts">ديون عليّ <span class="count" id="cntDebts">0</span></button>
+      <button class="tab" role="tab" id="tab-orders" aria-selected="true" data-tab="orders">بدي من الناس <span class="count" id="cntOrders">0</span></button>
+      <button class="tab" role="tab" id="tab-debts" aria-selected="false" data-tab="debts">بدهم مني <span class="count" id="cntDebts">0</span></button>
       <button class="tab" role="tab" id="tab-contacts" aria-selected="false" data-tab="contacts">الأسماء <span class="count k" id="cntContacts">0</span></button>
     </div>
 
@@ -186,7 +197,11 @@ textarea{resize:vertical;min-height:42px}
     <div class="cats" id="cats" role="group" aria-label="القائمة"></div>
 
     <form class="form" id="form" hidden autocomplete="off">
-      <h2 id="formTitle">طلب شحن جديد</h2>
+      <h2 id="formTitle">قيد جديد</h2>
+      <div class="dir" id="dirRow" role="group" aria-label="نوع القيد">
+        <button type="button" data-dir="orders" aria-pressed="true">بدي منه<small>هو لازم يدفعلي</small></button>
+        <button type="button" data-dir="debts" aria-pressed="false">بدو مني<small>أنا لازم أدفعله</small></button>
+      </div>
       <div class="grid">
         <div class="field"><label for="f-name" id="l-name">اسم الزبون</label><input id="f-name" list="people" required><datalist id="people"></datalist><span class="picked" id="picked" hidden></span></div>
         <div class="field"><label for="f-kind" id="l-kind">القائمة</label>
@@ -288,17 +303,31 @@ textarea{resize:vertical;min-height:42px}
     return parts.length ? parts.join(" + ") : "0 ₪";
   }
 
+  function netMap(ords, debs){
+    const m={};
+    ords.filter(x=>x.status!=="done").forEach(x=>{ const c=x.cur||"₪"; m[c]=(m[c]||0)+(+x.amount||0); });
+    debs.filter(x=>x.status!=="done").forEach(x=>{ const c=x.cur||"₪"; m[c]=(m[c]||0)-(+x.amount||0); });
+    return Object.entries(m).filter(([,v])=>Math.abs(v)>1e-9);
+  }
+  function netHtml(entries, who){
+    if(!entries.length) return `<span class="net">خالصين</span>`;
+    return entries.map(([c,v])=> v>0
+      ? `<span class="net plus">${who?"بدك منه":"إلك"} ${fmtMoney(v,c)}</span>`
+      : `<span class="net minus">${who?"بدو منك":"عليك"} ${fmtMoney(-v,c)}</span>`).join(" · ");
+  }
+
   // ----- render -----
   function render(){
     const O=state.orders, D=state.debts;
     $("#sumDue").textContent = sums(O, x=>x.status!=="done");
     const lateN=O.filter(isLate).length, waitN=O.filter(x=>x.status!=="done").length;
-    $("#sumDueSub").textContent = waitN ? `${waitN} طلب${lateN?` · ${lateN} متأخر`:""}` : "ما في حدا عليه إشي";
+    $("#sumDueSub").textContent = waitN ? `${waitN} قيد${lateN?` · ${lateN} متأخر`:""}` : "ما في حدا عليه إشي";
     $("#sumOk").textContent = sums(O, x=>x.status==="done");
-    $("#sumOkSub").textContent = `${O.filter(x=>x.status==="done").length} طلب مدفوع`;
+    $("#sumOkSub").textContent = `${O.filter(x=>x.status==="done").length} قيد مدفوع`;
     $("#sumOwe").textContent = sums(D, x=>x.status!=="done");
     const owN=D.filter(x=>x.status!=="done").length, owLate=D.filter(isLate).length;
-    $("#sumOweSub").textContent = owN ? `${owN} دين${owLate?` · ${owLate} فات موعده`:""}` : "ما عليك إشي";
+    $("#sumOweSub").textContent = owN ? `${owN} قيد${owLate?` · ${owLate} فات موعده`:""}` : "ما عليك إشي";
+    $("#sumNet").innerHTML = netHtml(netMap(O,D), false).replace(/class="net (plus|minus)"/g,"");
     $("#cntOrders").textContent = O.filter(x=>x.status!=="done").length;
     $("#cntDebts").textContent = owN;
     $("#cntContacts").textContent = state.contacts.length;
@@ -307,7 +336,7 @@ textarea{resize:vertical;min-height:42px}
 
     document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.tab===state.tab));
     document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed", c.dataset.f===state.filter));
-    $("#addBtn").textContent = state.tab==="orders" ? "+ طلب جديد" : state.tab==="debts" ? "+ دين جديد" : "+ اسم جديد";
+    $("#addBtn").textContent = state.tab==="contacts" ? "+ اسم جديد" : "+ قيد جديد";
 
     const list=$("#list");
     if(state.mode==="loading"){ list.innerHTML=`<div class="empty">جاري التحميل…</div>`; return; }
@@ -339,8 +368,8 @@ textarea{resize:vertical;min-height:42px}
         ? (isC
           ? `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>لسى ما ضفت ولا اسم</b>اضغط «+ اسم جديد» وسجّل التاجر أو الزبون أو واحد من MOHPTON TEAM مع رقم واتسه، وبعدين بتختاره بسرعة لما تسجل طلب.</div>`
           : state.tab==="orders"
-          ? `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>لسى ما سجلت ولا طلب</b>اضغط «+ طلب جديد» وسجّل أول شحنة: اسم الزبون، الخدمة، المبلغ، وموعد الدفع.</div>`
-          : `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>ما في ديون عليك مسجلة</b>اضغط «+ دين جديد» لما تاخد بضاعة أو مصاري من حدا وبدك ترجعله إياها.</div>`)
+          ? `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>ما في حدا عليه إلك إشي</b>اضغط «+ قيد جديد»، اختار «بدي منه»، وسجّل الاسم والمبلغ وموعد الدفع.</div>`
+          : `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>ما عليك إشي لحدا</b>اضغط «+ قيد جديد» واختار «بدو مني» لما تاخد بضاعة أو مصاري من حدا.</div>`)
         : `<div class="empty">ما في نتائج بهاد الفلتر.</div>`;
       return;
     }
@@ -372,14 +401,16 @@ textarea{resize:vertical;min-height:42px}
       <div style="min-width:0"><div class="who">${esc(c.name)}</div>${c.phone?`<div class="what" dir="ltr" style="text-align:right">${esc(c.phone)}</div>`:""}</div>
       <div><span class="tag k-${kindOf(c)}">${KINDS[kindOf(c)]}</span></div>
       <div class="contact-stats">
-        <span class="tag">${ords.length} طلب</span>
-        ${openO.length?`<span class="tag today">عليه لسى: ${sums(openO,()=>true)}</span>`:(ords.length?`<span class="tag">كل طلباته مدفوعة</span>`:"")}
+        <span class="tag" style="background:var(--surface-2)">الجرد: ${netHtml(netMap(openO,debs), true)}</span>
+        ${openO.length?`<span class="tag">بدي منه: ${sums(openO,()=>true)}</span>`:""}
+        ${debs.length?`<span class="tag">بدو مني: ${sums(debs,()=>true)}</span>`:""}
         ${lateN?`<span class="tag late">${lateN} متأخر</span>`:""}
-        ${debs.length?`<span class="tag late">إلو عليّ: ${sums(debs,()=>true)}</span>`:""}
+        <span class="tag">${ords.length+state.debts.filter(d=>norm(d.name)===n).length} قيد</span>
       </div>
       ${c.note?`<div class="note">${esc(c.note)}</div>`:""}
       <div class="row-actions">
-        <button class="pill wait" data-act="new-order" data-id="${c.id}">+ طلب إلو</button>
+        <button class="pill done" data-act="new-orders" data-id="${c.id}">+ بدي منه</button>
+        <button class="pill" style="background:var(--late-soft);color:var(--late)" data-act="new-debts" data-id="${c.id}">+ بدو مني</button>
         ${chat?`<a class="link wa" href="${chat}" target="_blank" rel="noopener">واتساب</a>`:""}
         <span class="spacer"></span>
         <button class="link" data-act="edit" data-id="${c.id}">تعديل</button>
@@ -428,22 +459,31 @@ textarea{resize:vertical;min-height:42px}
 
   // ----- form -----
   function setStatus(s){ state.status=s; document.querySelectorAll(".seg button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.s===s)); }
-  function openForm(item){
-    const isO=state.tab==="orders", isC=state.tab==="contacts";
-    state.editing=item&&item.id?item.id:null;
-    $("#formTitle").textContent = isC ? (state.editing?"تعديل الاسم":"اسم جديد") : state.editing ? (isO?"تعديل الطلب":"تعديل الدين") : (isO?"طلب شحن جديد":"دين جديد عليّ");
-    $("#l-name").textContent = isC?"الاسم":isO?"اسم الزبون":"لمين الدين؟";
-    $("#l-phone").textContent = isC?"رقم الواتس":"رقم الجوال";
-    $("#f-name").setAttribute("list", isC?"":"people");
+  function applyDir(fc){
+    state.formColl=fc;
+    const isO=fc==="orders", isC=fc==="contacts";
+    $("#dirRow").hidden=isC;
+    document.querySelectorAll("#dirRow button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.dir===fc));
+    $("#formTitle").textContent = isC ? (state.editing?"تعديل الاسم":"اسم جديد") : (state.editing?"تعديل القيد":"قيد جديد");
+    $("#l-name").textContent = isC?"الاسم":isO?"مين بدك منه؟":"مين بدو منك؟";
+    $("#l-date").textContent = "التاريخ";
+    $("#l-due").textContent = isO?"متى وعدك يدفع؟":"متى لازم تدفعله؟";
+    $("#l-status").textContent = isO?"دفعلك؟":"دفعتله؟";
+    document.querySelectorAll(".orders-only").forEach(e=>e.hidden=!isO);
+    document.querySelectorAll(".debts-only").forEach(e=>e.hidden=fc!=="debts");
     document.querySelectorAll(".money-only").forEach(e=>e.hidden=isC);
     $("#f-amount").required = !isC;
+  }
+  function openForm(item, coll){
+    const fc = coll || state.tab;
+    const isC=fc==="contacts";
+    state.editing=item&&item.id?item.id:null;
+    state.editColl=state.editing?fc:null;
+    $("#l-phone").textContent = isC?"رقم الواتس":"رقم الجوال";
+    $("#f-name").setAttribute("list", isC?"":"people");
     $("#picked").hidden = true;
     $("#f-kind").value = item ? kindOf(item) : (state.cat!=="all"?state.cat:"customer");
-    $("#l-date").textContent = isO?"تاريخ الطلب":"تاريخ الدين";
-    $("#l-due").textContent = isO?"موعد الدفع اللي وعد فيه":"موعد السداد";
-    $("#l-status").textContent = isO?"الدفع":"السداد";
-    document.querySelectorAll(".orders-only").forEach(e=>e.hidden=!isO);
-    document.querySelectorAll(".debts-only").forEach(e=>e.hidden=state.tab!=="debts");
+    applyDir(fc);
     const v=item||{};
     $("#f-name").value=v.name||""; $("#f-phone").value=v.phone||""; $("#f-service").value=v.service||"";
     $("#f-platform").value=v.platform||""; $("#f-gid").value=v.gid||""; $("#f-reason").value=v.reason||"";
@@ -457,7 +497,7 @@ textarea{resize:vertical;min-height:42px}
 
   $("#form").addEventListener("submit", async e=>{
     e.preventDefault();
-    const coll=state.tab, isO=coll==="orders";
+    const coll=state.formColl, isO=coll==="orders";
     if(coll==="contacts"){
       const oldC = state.editing ? state.contacts.find(x=>x.id===state.editing) : null;
       const c = { id: oldC?oldC.id:newId(), created: oldC?.created||Date.now(), kind:$("#f-kind").value,
@@ -470,7 +510,8 @@ textarea{resize:vertical;min-height:42px}
       finally{ $("#saveBtn").disabled=false; }
       return;
     }
-    const old = state.editing ? state[coll].find(x=>x.id===state.editing) : null;
+    const old = state.editing ? state[state.editColl].find(x=>x.id===state.editing) : null;
+    const moved = old && state.editColl!==coll ? state.editColl : null;
     const item = {
       id: old?old.id:newId(), created: old?.created||Date.now(),
       kind: $("#f-kind").value,
@@ -484,12 +525,12 @@ textarea{resize:vertical;min-height:42px}
     item.paidAt = item.status==="done" ? (old?.status==="done" && old.paidAt ? old.paidAt : today()) : "";
     if(!item.name){ $("#f-name").focus(); return; }
     $("#saveBtn").disabled=true;
-    try{ await put(coll,item); closeForm(); toast("انحفظ ✓"); }
+    try{ await put(coll,item); if(moved) await remove(moved, old.id); closeForm(); state.tab=coll; render(); toast(isO?"انحفظ: بدك منه ✓":"انحفظ: بدو منك ✓"); }
     catch(err){ toast(err?.code==="quota_exceeded"?"المساحة امتلت، احذف قيود قديمة":"ما انحفظ، جرّب كمان مرة"); }
     finally{ $("#saveBtn").disabled=false; }
   });
   $("#f-name").addEventListener("input", ()=>{
-    if(state.tab==="contacts") return;
+    if(state.formColl==="contacts") return;
     const c=findContact($("#f-name").value);
     const pk=$("#picked");
     if(c){ if(c.phone) $("#f-phone").value=c.phone; $("#f-kind").value=kindOf(c); pk.textContent=`✓ من الأسماء: ${KINDS[kindOf(c)]}`; pk.hidden=false; }
@@ -498,6 +539,7 @@ textarea{resize:vertical;min-height:42px}
   $("#cancelBtn").addEventListener("click", closeForm);
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setStatus(b.dataset.s)));
   $("#addBtn").addEventListener("click", ()=>openForm(null));
+  document.querySelectorAll("#dirRow button").forEach(b=>b.addEventListener("click",()=>applyDir(b.dataset.dir)));
 
   // ----- list actions -----
   const busy=new Set();
@@ -505,7 +547,7 @@ textarea{resize:vertical;min-height:42px}
     const b=e.target.closest("[data-act]"); if(!b) return;
     const coll=state.tab, id=b.dataset.id, act=b.dataset.act;
     const item = id && state[coll].find(x=>x.id===id);
-    if(act==="new-order" && item){ state.tab="orders"; state.cat="all"; state.confirmDel=null; render(); openForm({name:item.name, phone:item.phone, kind:kindOf(item)}); $("#picked").textContent=`✓ من الأسماء: ${KINDS[kindOf(item)]}`; $("#picked").hidden=false; return; }
+    if((act==="new-orders"||act==="new-debts") && item){ const to=act.slice(4); state.tab=to; state.cat="all"; state.confirmDel=null; render(); openForm({name:item.name, phone:item.phone, kind:kindOf(item)}, to); $("#picked").textContent=`✓ من الأسماء: ${KINDS[kindOf(item)]}`; $("#picked").hidden=false; return; }
     if(act==="toggle" && item && !busy.has(id)){
       busy.add(id);
       const done = item.status!=="done";
