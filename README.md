@@ -21,3 +21,9 @@
 2. اطلب من Claude بمشروع «تسجيل حسابات شحن TARGET COINS» ينشر النسخة الجديدة على نفس الرابط. البيانات ما بتنمسح لما ننشر نسخة جديدة.
 
 ملاحظة: الملف ما فيه `<html>` و `<head>` لأنه Claude بيضيفهم وقت النشر.
+
+## نسخة GitHub Pages (فيها اللوجو بالتاب)
+- الرابط: https://azmielw.github.io/target-coins/
+- الملف: `docs/index.html`، وبينبني من `index.html` بأمر `python3 build-pages.py`.
+- هاي النسخة بتحفظ على نفس الجهاز والمتصفح بس، وفيها أزرار «تنزيل نسخة احتياطية» و«استرجاع من نسخة».
+- عشان تشتغل: Settings ← Pages ← Source: Deploy from a branch ← Branch: `main` والمجلد `/docs` ← Save.

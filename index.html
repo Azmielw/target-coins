@@ -174,6 +174,11 @@ textarea{resize:vertical;min-height:42px}
 <main>
   <div class="wrap">
     <div id="notice" class="notice" hidden></div>
+    <div id="backup" class="bar" hidden>
+      <button class="btn btn-ghost" id="exportBtn" type="button">تنزيل نسخة احتياطية</button>
+      <label class="btn btn-ghost" for="importFile" style="cursor:pointer">استرجاع من نسخة</label>
+      <input id="importFile" type="file" accept="application/json,.json" hidden>
+    </div>
 
     <section class="tiles" aria-label="الملخص">
       <div class="tile t-due"><div class="lbl">بدي من الناس (لسى)</div><div class="val" id="sumDue">0 ₪</div><div class="sub" id="sumDueSub">—</div></div>
@@ -293,10 +298,28 @@ textarea{resize:vertical;min-height:42px}
       });
     } else {
       state.mode="local"; lsLoad();
-      showNotice("الحفظ هلق على هذا الجهاز بس. افتح الرابط وانت مسجّل دخول على Claude عشان تنحفظ البيانات وتشوفها من أي جهاز.");
+      const inClaude = /claude\.ai|claudeusercontent/.test(location.hostname) || !!window.claude;
+      showNotice(inClaude
+        ? "الحفظ هلق على هذا الجهاز بس. افتح الرابط وانت مسجّل دخول على Claude عشان تنحفظ البيانات وتشوفها من أي جهاز."
+        : "هاي النسخة بتحفظ البيانات على هاد الجهاز وهاد المتصفح بس. نزّل نسخة احتياطية كل فترة عشان ما تضيع.");
+      $("#backup").hidden = inClaude;
       render();
     }
   }
+  $("#exportBtn").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify({orders:state.orders, debts:state.debts, contacts:state.contacts, savedAt:new Date().toISOString()}, null, 1)], {type:"application/json"});
+    const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`target-coins-${today()}.json`; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(a.href), 2000); toast("انتزلت النسخة ✓");
+  });
+  $("#importFile").addEventListener("change", async e=>{
+    const f=e.target.files[0]; if(!f) return;
+    try{ const d=JSON.parse(await f.text());
+      if(!Array.isArray(d.orders)||!Array.isArray(d.debts)) throw 0;
+      state.orders=d.orders; state.debts=d.debts; state.contacts=Array.isArray(d.contacts)?d.contacts:[];
+      lsSave(); render(); toast("رجعت البيانات من النسخة ✓");
+    }catch(err){ toast("الملف مش نسخة من الدفتر"); }
+    e.target.value="";
+  });
   function showNotice(t){ const n=$("#notice"); n.textContent=t; n.hidden=false; }
 
   // ----- derived -----
