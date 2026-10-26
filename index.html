@@ -223,6 +223,8 @@ textarea{resize:vertical;min-height:42px}
         <div class="field"><label for="f-kind" id="l-kind">القائمة</label>
           <select id="f-kind"><option value="customer">زبون عادي</option><option value="trader">تاجر</option><option value="team">MOHPTON TEAM</option></select></div>
         <div class="field"><label for="f-phone" id="l-phone">رقم الجوال</label><input id="f-phone" type="tel" inputmode="tel" placeholder="059xxxxxxx" dir="ltr"></div>
+        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" inputmode="email" placeholder="name@gmail.com" dir="ltr" autocapitalize="off"></div>
+        <div class="field"><label for="f-igg">IGG ID</label><input id="f-igg" inputmode="numeric" placeholder="رقم حساب الفاتحون" dir="ltr"></div>
         <div class="field orders-only"><label for="f-service">الخدمة / اللعبة</label>
           <input id="f-service" list="services" placeholder="مثلاً: شدات ببجي 660 UC">
           <datalist id="services">
@@ -412,7 +414,7 @@ textarea{resize:vertical;min-height:42px}
     const SRC = isR ? RC : state[state.tab];
     let items=[...SRC];
     const q=state.q.trim().toLowerCase();
-    if(q) items=items.filter(x=>[x.name,x.phone,x.service,x.gid,x.reason,x.note,x.platform].join(" ").toLowerCase().includes(q));
+    if(q) items=items.filter(x=>[x.name,x.phone,x.email,x.igg,x.service,x.gid,x.reason,x.note,x.platform].join(" ").toLowerCase().includes(q));
     const catsHtml = [["all","الكل"],...Object.entries(KINDS)].map(([k,label])=>{
       const arr = SRC.filter(x=>k==="all"||kindOf(x)===k);
       let sub;
@@ -500,6 +502,7 @@ textarea{resize:vertical;min-height:42px}
         ${d.date?`<span class="tag">تاريخ الحجز ${fmtDate(d.date)}</span>`:""}
         ${recvTag}${stTag}
         ${d.phone?`<span class="tag" dir="ltr">${esc(d.phone)}</span>`:""}
+        ${d.email?`<span class="tag" dir="ltr">${esc(d.email)}</span>`:""}${d.igg?`<span class="tag" dir="ltr">IGG ${esc(d.igg)}</span>`:""}
       </div>
       ${d.note?`<div class="note">${esc(d.note)}</div>`:""}
       <div class="row-actions">
@@ -517,7 +520,7 @@ textarea{resize:vertical;min-height:42px}
     const lateN=openO.filter(isLate).length;
     const chat = c.phone ? waLink(c.phone, `مرحبا ${c.name||""} 👋`) : "";
     return `<article class="entry${lateN?" late":""}">
-      <div style="min-width:0"><div class="who">${esc(c.name)}</div>${c.phone?`<div class="what" dir="ltr" style="text-align:right">${esc(c.phone)}</div>`:""}</div>
+      <div style="min-width:0"><div class="who">${esc(c.name)}</div>${[c.phone,c.email,c.igg?"IGG "+c.igg:""].filter(Boolean).map(t=>`<div class="what" dir="ltr" style="text-align:right">${esc(t)}</div>`).join("")}</div>
       <div><span class="tag k-${kindOf(c)}">${KINDS[kindOf(c)]}</span></div>
       <div class="contact-stats">
         <span class="tag" style="background:var(--surface-2)">الجرد: ${netHtml(netMap(openO,debs), true)}</span>
@@ -563,6 +566,7 @@ textarea{resize:vertical;min-height:42px}
         ${x.date?`<span class="tag">${isO?"انشحن":"تاريخ الدين"} ${fmtDate(x.date)}</span>`:""}
         ${dueTag}
         ${x.gid?`<span class="tag" dir="ltr">ID ${esc(x.gid)}</span>`:""}
+        ${x.email?`<span class="tag" dir="ltr">${esc(x.email)}</span>`:""}${x.igg?`<span class="tag" dir="ltr">IGG ${esc(x.igg)}</span>`:""}
         ${x.phone?`<span class="tag" dir="ltr">${esc(x.phone)}</span>`:""}
         ${done&&x.paidAt?`<span class="tag">${isO?"دفع":"سدّيت"} ${fmtDate(x.paidAt)}</span>`:""}
         ${isO&&!done&&paySum(x)>0?`<span class="tag part">دفع ${fmtMoney(paySum(x),x.cur)} · باقي ${fmtMoney(remOf(x),x.cur)}</span>`:""}
@@ -611,7 +615,7 @@ textarea{resize:vertical;min-height:42px}
     $("#f-kind").value = item ? kindOf(item) : (state.cat!=="all"?state.cat:"customer");
     applyDir(fc);
     const v=item||{};
-    $("#f-name").value=v.name||""; $("#f-phone").value=v.phone||""; $("#f-service").value=v.service||"";
+    $("#f-name").value=v.name||""; $("#f-phone").value=v.phone||""; $("#f-email").value=v.email||""; $("#f-igg").value=v.igg||""; $("#f-service").value=v.service||"";
     $("#f-platform").value=v.platform||""; $("#f-gid").value=v.gid||""; $("#f-reason").value=v.reason||"";
     $("#f-amount").value=v.amount??""; $("#f-cur").value=v.cur||"₪";
     $("#f-date").value=v.date||today(); $("#f-due").value=v.due||""; $("#f-note").value=v.note||"";
@@ -627,7 +631,7 @@ textarea{resize:vertical;min-height:42px}
     if(coll==="contacts"){
       const oldC = state.editing ? state.contacts.find(x=>x.id===state.editing) : null;
       const c = { id: oldC?oldC.id:newId(), created: oldC?.created||Date.now(), kind:$("#f-kind").value,
-        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), note:$("#f-note").value.trim() };
+        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), email:$("#f-email").value.trim(), igg:$("#f-igg").value.trim(), note:$("#f-note").value.trim() };
       if(!c.name){ $("#f-name").focus(); return; }
       const dup = findContact(c.name); if(dup && dup.id!==c.id){ toast("هالاسم موجود من قبل"); return; }
       $("#saveBtn").disabled=true;
@@ -639,7 +643,7 @@ textarea{resize:vertical;min-height:42px}
     if(coll==="deposits" && !(state.editing && state.editColl!=="deposits")){
       const oldD = state.editing ? state.deposits.find(x=>x.id===state.editing) : null;
       const d = { id: oldD?oldD.id:newId(), created: oldD?.created||Date.now(), kind:$("#f-kind").value,
-        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), reason:$("#f-reason").value.trim(),
+        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), email:$("#f-email").value.trim(), igg:$("#f-igg").value.trim(), reason:$("#f-reason").value.trim(),
         amount: parseFloat($("#f-amount").value)||0, cur:$("#f-cur").value, date:$("#f-date").value||today(),
         note:$("#f-note").value.trim(), received: state.status==="done", status: oldD?.status||"held", orderId: oldD?.orderId||"", closedAt: oldD?.closedAt||"" };
       if(!d.name){ $("#f-name").focus(); return; }
@@ -656,7 +660,7 @@ textarea{resize:vertical;min-height:42px}
     const item = {
       id: old?old.id:newId(), created: old?.created||Date.now(),
       kind: $("#f-kind").value,
-      name: $("#f-name").value.trim(), phone: $("#f-phone").value.trim(),
+      name: $("#f-name").value.trim(), phone: $("#f-phone").value.trim(), email: $("#f-email").value.trim(), igg: $("#f-igg").value.trim(),
       amount: parseFloat($("#f-amount").value)||0, cur: $("#f-cur").value,
       date: $("#f-date").value, due: $("#f-due").value, note: $("#f-note").value.trim(),
       status: state.status,
@@ -680,7 +684,7 @@ textarea{resize:vertical;min-height:42px}
     if(state.formColl==="contacts") return;
     const c=findContact($("#f-name").value);
     const pk=$("#picked");
-    if(c){ if(c.phone) $("#f-phone").value=c.phone; $("#f-kind").value=kindOf(c); pk.textContent=`✓ من الأسماء: ${KINDS[kindOf(c)]}`; pk.hidden=false; }
+    if(c){ if(c.phone) $("#f-phone").value=c.phone; if(c.email) $("#f-email").value=c.email; if(c.igg) $("#f-igg").value=c.igg; $("#f-kind").value=kindOf(c); pk.textContent=`✓ من الأسماء: ${KINDS[kindOf(c)]}`; pk.hidden=false; }
     else pk.hidden=true;
   });
   $("#cancelBtn").addEventListener("click", closeForm);
@@ -696,7 +700,7 @@ textarea{resize:vertical;min-height:42px}
     const item = id && (state[coll]||[]).find(x=>x.id===id);
     if(act==="dep-order" && item){
       state.tab="orders"; state.cat="all"; state.confirmDel=null; render();
-      openForm({name:item.name, phone:item.phone, kind:kindOf(item), service:item.reason, cur:item.cur, amount:item.amount}, "orders");
+      openForm({name:item.name, phone:item.phone, email:item.email, igg:item.igg, kind:kindOf(item), service:item.reason, cur:item.cur, amount:item.amount}, "orders");
       state.fromDeposit=item.id;
       $("#picked").textContent = item.received===false ? `الحجز لسى ما دفعه، فالطلب بينسجل كامل عليه` : `✓ بينخصم من الحجز ${fmtMoney(item.amount,item.cur)}. اكتب سعر الطلب كامل`; $("#picked").hidden=false;
       return;
@@ -730,7 +734,7 @@ textarea{resize:vertical;min-height:42px}
       finally{ busy.delete(id); }
       return;
     }
-    if((act==="new-orders"||act==="new-debts") && item){ const to=act.slice(4); state.tab=to; state.cat="all"; state.confirmDel=null; render(); openForm({name:item.name, phone:item.phone, kind:kindOf(item)}, to); $("#picked").textContent=`✓ من الأسماء: ${KINDS[kindOf(item)]}`; $("#picked").hidden=false; return; }
+    if((act==="new-orders"||act==="new-debts") && item){ const to=act.slice(4); state.tab=to; state.cat="all"; state.confirmDel=null; render(); openForm({name:item.name, phone:item.phone, email:item.email, igg:item.igg, kind:kindOf(item)}, to); $("#picked").textContent=`✓ من الأسماء: ${KINDS[kindOf(item)]}`; $("#picked").hidden=false; return; }
     if(act==="toggle" && item && !busy.has(id)){
       busy.add(id);
       const done = item.status!=="done";
