@@ -225,8 +225,8 @@ textarea{resize:vertical;min-height:42px}
         <div class="field"><label for="f-kind" id="l-kind">القائمة</label>
           <select id="f-kind"><option value="customer">زبون عادي</option><option value="trader">تاجر</option><option value="team">MOHPTON TEAM</option></select></div>
         <div class="field"><label for="f-phone" id="l-phone">رقم الجوال</label><input id="f-phone" type="tel" inputmode="tel" placeholder="059xxxxxxx" dir="ltr"></div>
-        <div class="field"><label for="f-email">Email</label><input id="f-email" type="email" inputmode="email" placeholder="name@gmail.com" dir="ltr" autocapitalize="off"></div>
-        <div class="field"><label for="f-igg">IGG ID</label><input id="f-igg" inputmode="numeric" placeholder="رقم حساب الفاتحون" dir="ltr"></div>
+        <div class="field ids-only"><label for="f-email">Email</label><input id="f-email" type="email" inputmode="email" placeholder="name@gmail.com" dir="ltr" autocapitalize="off"></div>
+        <div class="field ids-only"><label for="f-igg">IGG ID</label><input id="f-igg" inputmode="numeric" placeholder="رقم حساب الفاتحون" dir="ltr"></div>
         <div class="field orders-only"><label for="f-service">الخدمة / اللعبة</label>
           <input id="f-service" list="services" placeholder="مثلاً: شدات ببجي 660 UC">
           <datalist id="services">
@@ -604,7 +604,12 @@ textarea{resize:vertical;min-height:42px}
     document.querySelectorAll(".debts-only").forEach(e=>e.hidden=fc!=="debts"&&!isDep);
     document.querySelectorAll(".money-only").forEach(e=>e.hidden=isC);
     document.querySelectorAll(".nodep").forEach(e=>e.hidden=isC||isDep);
+    syncIds();
     $("#f-amount").required = !isC;
+  }
+  function syncIds(){
+    const show = state.formColl==="deposits" && $("#f-kind").value==="customer";
+    document.querySelectorAll(".ids-only").forEach(e=>e.hidden=!show);
   }
   function openForm(item, coll){
     const fc = coll || state.tab;
@@ -633,7 +638,7 @@ textarea{resize:vertical;min-height:42px}
     if(coll==="contacts"){
       const oldC = state.editing ? state.contacts.find(x=>x.id===state.editing) : null;
       const c = { id: oldC?oldC.id:newId(), created: oldC?.created||Date.now(), kind:$("#f-kind").value,
-        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), email:$("#f-email").value.trim(), igg:$("#f-igg").value.trim(), note:$("#f-note").value.trim() };
+        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), email: oldC?.email||"", igg: oldC?.igg||"", note:$("#f-note").value.trim() };
       if(!c.name){ $("#f-name").focus(); return; }
       const dup = findContact(c.name); if(dup && dup.id!==c.id){ toast("هالاسم موجود من قبل"); return; }
       $("#saveBtn").disabled=true;
@@ -645,7 +650,7 @@ textarea{resize:vertical;min-height:42px}
     if(coll==="deposits" && !(state.editing && state.editColl!=="deposits")){
       const oldD = state.editing ? state.deposits.find(x=>x.id===state.editing) : null;
       const d = { id: oldD?oldD.id:newId(), created: oldD?.created||Date.now(), kind:$("#f-kind").value,
-        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), email:$("#f-email").value.trim(), igg:$("#f-igg").value.trim(), reason:$("#f-reason").value.trim(),
+        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), email: $("#f-kind").value==="customer" ? $("#f-email").value.trim() : "", igg: $("#f-kind").value==="customer" ? $("#f-igg").value.trim() : "", reason:$("#f-reason").value.trim(),
         amount: parseFloat($("#f-amount").value)||0, cur:$("#f-cur").value, date:$("#f-date").value||today(),
         note:$("#f-note").value.trim(), received: state.status==="done", status: oldD?.status||"held", orderId: oldD?.orderId||"", closedAt: oldD?.closedAt||"" };
       if(!d.name){ $("#f-name").focus(); return; }
@@ -662,7 +667,7 @@ textarea{resize:vertical;min-height:42px}
     const item = {
       id: old?old.id:newId(), created: old?.created||Date.now(),
       kind: $("#f-kind").value,
-      name: $("#f-name").value.trim(), phone: $("#f-phone").value.trim(), email: $("#f-email").value.trim(), igg: $("#f-igg").value.trim(),
+      name: $("#f-name").value.trim(), phone: $("#f-phone").value.trim(), email: old?.email||"", igg: old?.igg||"",
       amount: parseFloat($("#f-amount").value)||0, cur: $("#f-cur").value,
       date: $("#f-date").value, due: $("#f-due").value, note: $("#f-note").value.trim(),
       status: state.status,
@@ -686,9 +691,10 @@ textarea{resize:vertical;min-height:42px}
     if(state.formColl==="contacts") return;
     const c=findContact($("#f-name").value);
     const pk=$("#picked");
-    if(c){ if(c.phone) $("#f-phone").value=c.phone; if(c.email) $("#f-email").value=c.email; if(c.igg) $("#f-igg").value=c.igg; $("#f-kind").value=kindOf(c); pk.textContent=`✓ من الأسماء: ${KINDS[kindOf(c)]}`; pk.hidden=false; }
+    if(c){ if(c.phone) $("#f-phone").value=c.phone; if(c.email) $("#f-email").value=c.email; if(c.igg) $("#f-igg").value=c.igg; $("#f-kind").value=kindOf(c); syncIds(); pk.textContent=`✓ من الأسماء: ${KINDS[kindOf(c)]}`; pk.hidden=false; }
     else pk.hidden=true;
   });
+  $("#f-kind").addEventListener("change", syncIds);
   $("#cancelBtn").addEventListener("click", closeForm);
   document.querySelectorAll(".seg button").forEach(b=>b.addEventListener("click",()=>setStatus(b.dataset.s)));
   $("#addBtn").addEventListener("click", ()=>openForm(null));
