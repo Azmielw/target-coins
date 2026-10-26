@@ -63,11 +63,14 @@ main .wrap{padding-block:18px 60px;display:flex;flex-direction:column;gap:18px}
 .tile.t-net .lbl,.tile.t-net .sub{color:var(--navy-ink);opacity:.8}
 .tile.t-net .val{font-size:16px}
 @media (max-width:700px){.tiles{grid-template-columns:1fr 1fr}}
-.dir{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.dir{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
 .dir button{border:2px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 8px;cursor:pointer;font-weight:700;font-size:16px;color:var(--ink-2);display:flex;flex-direction:column;align-items:center;gap:2px}
 .dir button small{font-weight:500;font-size:12px}
 .dir button[aria-pressed="true"][data-dir="orders"]{border-color:var(--ok);background:var(--ok-soft);color:var(--ok)}
 .dir button[aria-pressed="true"][data-dir="debts"]{border-color:var(--late);background:var(--late-soft);color:var(--late)}
+.dir button[aria-pressed="true"][data-dir="deposits"]{border-color:var(--gold);background:var(--gold-soft);color:var(--gold-ink)}
+@media (max-width:420px){.dir button{font-size:14px;padding:10px 4px}.dir button small{font-size:11px}}
+.tag.held{background:var(--gold-soft);color:var(--gold-ink);font-weight:700}
 .payrow{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:var(--ok-soft);border-radius:10px;padding:8px}
 .payrow input{width:auto;flex:1 1 110px;min-width:0;padding:7px 9px}
 .payrow .btn{padding:7px 12px}
@@ -77,7 +80,8 @@ main .wrap{padding-block:18px 60px;display:flex;flex-direction:column;gap:18px}
 /* tabs */
 .tabs{display:flex;gap:6px;background:var(--surface-2);padding:5px;border-radius:999px;width:fit-content;max-width:100%}
 .tab{border:0;background:transparent;padding:8px 16px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--ink-2);display:flex;gap:6px;align-items:center}
-.tab{white-space:nowrap}
+.tab{white-space:nowrap;flex:0 0 auto}
+.tabs{overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}.tabs::-webkit-scrollbar{display:none}
 @media (max-width:440px){.tab{padding:8px 10px;font-size:14px}}
 .tab[aria-selected="true"]{background:var(--surface);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.08)}
 .tab .count.k{background:var(--surface-2);color:var(--ink-2)}
@@ -190,6 +194,7 @@ textarea{resize:vertical;min-height:42px}
     <div class="tabs" role="tablist">
       <button class="tab" role="tab" id="tab-orders" aria-selected="true" data-tab="orders">بدي من الناس <span class="count" id="cntOrders">0</span></button>
       <button class="tab" role="tab" id="tab-debts" aria-selected="false" data-tab="debts">بدهم مني <span class="count" id="cntDebts">0</span></button>
+      <button class="tab" role="tab" id="tab-deposits" aria-selected="false" data-tab="deposits">الحجوزات <span class="count k" id="cntDeposits">0</span></button>
       <button class="tab" role="tab" id="tab-contacts" aria-selected="false" data-tab="contacts">الأسماء <span class="count k" id="cntContacts">0</span></button>
       <button class="tab" role="tab" id="tab-receipts" aria-selected="false" data-tab="receipts">الاستلامات <span class="count k" id="cntReceipts">0</span></button>
     </div>
@@ -211,6 +216,7 @@ textarea{resize:vertical;min-height:42px}
       <div class="dir" id="dirRow" role="group" aria-label="نوع القيد">
         <button type="button" data-dir="orders" aria-pressed="true">بدي منه<small>هو لازم يدفعلي</small></button>
         <button type="button" data-dir="debts" aria-pressed="false">بدو مني<small>أنا لازم أدفعله</small></button>
+        <button type="button" data-dir="deposits" aria-pressed="false">استلمت حجز<small>عربون قبل التسليم</small></button>
       </div>
       <div class="grid">
         <div class="field"><label for="f-name" id="l-name">اسم الزبون</label><input id="f-name" list="people" required><datalist id="people"></datalist><span class="picked" id="picked" hidden></span></div>
@@ -229,13 +235,13 @@ textarea{resize:vertical;min-height:42px}
         <div class="field orders-only"><label for="f-platform">المنصة</label>
           <select id="f-platform"><option value="">—</option><option>Mobile</option><option>PC</option><option>PS4 / PS5</option><option>اشتراك / أونلاين</option></select></div>
         <div class="field orders-only"><label for="f-gid">ID اللاعب / الحساب</label><input id="f-gid" dir="ltr"></div>
-        <div class="field debts-only" hidden><label for="f-reason">على شو؟</label><input id="f-reason" placeholder="مثلاً: بطاقات ستيم، شدات بالجملة"></div>
+        <div class="field debts-only" hidden><label for="f-reason" id="l-reason">على شو؟</label><input id="f-reason" placeholder="مثلاً: بطاقات ستيم، شدات بالجملة"></div>
         <div class="field money-only"><label for="f-amount">المبلغ</label>
           <div class="money"><input id="f-amount" type="number" inputmode="decimal" min="0" step="any" required>
             <select id="f-cur" aria-label="العملة"><option value="₪">₪ شيكل</option><option value="$">$ دولار</option><option value="جنيه">جنيه</option></select></div></div>
         <div class="field money-only"><label for="f-date" id="l-date">تاريخ الطلب</label><input id="f-date" type="date"></div>
-        <div class="field money-only"><label for="f-due" id="l-due">موعد الدفع اللي وعد فيه</label><input id="f-due" type="date"></div>
-        <div class="field money-only"><label id="l-status">الدفع</label>
+        <div class="field money-only nodep"><label for="f-due" id="l-due">موعد الدفع اللي وعد فيه</label><input id="f-due" type="date"></div>
+        <div class="field money-only nodep"><label id="l-status">الدفع</label>
           <div class="seg" role="group" aria-labelledby="l-status">
             <button type="button" class="s-wait" data-s="wait" aria-pressed="true">لسى</button>
             <button type="button" class="s-done" data-s="done" aria-pressed="false">تم</button>
@@ -259,7 +265,7 @@ textarea{resize:vertical;min-height:42px}
   const KINDS = {customer:"زبون عادي", trader:"تاجر", team:"MOHPTON TEAM"};
   const kindOf = x => KINDS[x.kind] ? x.kind : "customer";
   const LOGO = (document.querySelector(".logo img")||{}).src||"";
-  const state = { contacts:[], tab:"orders", filter:"all", cat:"all", q:"", orders:[], debts:[], editing:null, status:"wait", confirmDel:null, mode:"loading" };
+  const state = { deposits:[], fromDeposit:null, confirmRet:null, contacts:[], tab:"orders", filter:"all", cat:"all", q:"", orders:[], debts:[], editing:null, status:"wait", confirmDel:null, mode:"loading" };
   let db = null;
 
   const today = () => { const d=new Date(); d.setMinutes(d.getMinutes()-d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
@@ -271,8 +277,8 @@ textarea{resize:vertical;min-height:42px}
 
   // ----- storage: db when available, browser storage as fallback -----
   const LS = "tc-ledger-v1";
-  function lsLoad(){ try{ const d=JSON.parse(localStorage.getItem(LS)||"{}"); state.orders=d.orders||[]; state.debts=d.debts||[]; state.contacts=d.contacts||[]; }catch(e){} }
-  function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify({orders:state.orders, debts:state.debts, contacts:state.contacts})); }catch(e){} }
+  function lsLoad(){ try{ const d=JSON.parse(localStorage.getItem(LS)||"{}"); state.orders=d.orders||[]; state.debts=d.debts||[]; state.contacts=d.contacts||[]; state.deposits=d.deposits||[]; }catch(e){} }
+  function lsSave(){ try{ localStorage.setItem(LS, JSON.stringify({orders:state.orders, debts:state.debts, contacts:state.contacts, deposits:state.deposits})); }catch(e){} }
 
   async function put(coll, item){
     const body = {...item}; delete body.id;
@@ -290,7 +296,7 @@ textarea{resize:vertical;min-height:42px}
     try{ db = window.claude && await window.claude.use("db"); }catch(e){ db=null; }
     if(db){
       state.mode="db";
-      ["orders","debts","contacts"].forEach(coll=>{
+      ["orders","debts","contacts","deposits"].forEach(coll=>{
         db.collection(coll).onSnapshot(snap=>{
           state[coll]=snap.docs.map(d=>({id:d.id, ...d.data()}));
           render();
@@ -307,7 +313,7 @@ textarea{resize:vertical;min-height:42px}
     }
   }
   $("#exportBtn").addEventListener("click", ()=>{
-    const blob = new Blob([JSON.stringify({orders:state.orders, debts:state.debts, contacts:state.contacts, savedAt:new Date().toISOString()}, null, 1)], {type:"application/json"});
+    const blob = new Blob([JSON.stringify({orders:state.orders, debts:state.debts, contacts:state.contacts, deposits:state.deposits, savedAt:new Date().toISOString()}, null, 1)], {type:"application/json"});
     const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=`target-coins-${today()}.json`; document.body.appendChild(a); a.click(); a.remove();
     setTimeout(()=>URL.revokeObjectURL(a.href), 2000); toast("انتزلت النسخة ✓");
   });
@@ -315,7 +321,7 @@ textarea{resize:vertical;min-height:42px}
     const f=e.target.files[0]; if(!f) return;
     try{ const d=JSON.parse(await f.text());
       if(!Array.isArray(d.orders)||!Array.isArray(d.debts)) throw 0;
-      state.orders=d.orders; state.debts=d.debts; state.contacts=Array.isArray(d.contacts)?d.contacts:[];
+      state.orders=d.orders; state.debts=d.debts; state.contacts=Array.isArray(d.contacts)?d.contacts:[]; state.deposits=Array.isArray(d.deposits)?d.deposits:[];
       lsSave(); render(); toast("رجعت البيانات من النسخة ✓");
     }catch(err){ toast("الملف مش نسخة من الدفتر"); }
     e.target.value="";
@@ -339,11 +345,13 @@ textarea{resize:vertical;min-height:42px}
   function receipts(){
     const out=[];
     state.orders.forEach(o=>{
-      (o.payments||[]).forEach((p,i)=>out.push({id:o.id+"-p"+i, oid:o.id, name:o.name, kind:o.kind, service:o.service, cur:o.cur, amount:+p.amount||0, date:p.date, part:true}));
+      (o.payments||[]).forEach((p,i)=>!p.fromDeposit && out.push({id:o.id+"-p"+i, oid:o.id, name:o.name, kind:o.kind, service:o.service, cur:o.cur, amount:+p.amount||0, date:p.date, part:true}));
       if(o.status==="done"){ const rest=(+o.amount||0)-paySum(o); if(rest>1e-9) out.push({id:o.id+"-r", oid:o.id, name:o.name, kind:o.kind, service:o.service, cur:o.cur, amount:rest, date:o.paidAt||o.date, part:paySum(o)>0}); }
     });
+    state.deposits.filter(d=>d.status!=="returned").forEach(d=>out.push({id:d.id+"-d", name:d.name, kind:d.kind, service:d.reason, cur:d.cur, amount:+d.amount||0, date:d.date, dep:d.status||"held"}));
     return out.sort((a,b)=>String(b.date||"").localeCompare(String(a.date||"")));
   }
+  const heldDeps = () => state.deposits.filter(d=>(d.status||"held")==="held");
   function signedHtml(m){
     const e=Object.entries(m).filter(([,v])=>Math.abs(v)>1e-9);
     if(!e.length) return "0";
@@ -369,21 +377,24 @@ textarea{resize:vertical;min-height:42px}
     const lateN=O.filter(isLate).length, waitN=O.filter(x=>x.status!=="done").length;
     $("#sumDueSub").textContent = waitN ? `${waitN} قيد${lateN?` · ${lateN} متأخر`:""}` : "ما في حدا عليه إشي";
     const RC=receipts();
-    $("#sumOk").textContent = fmtMap(mapBy(O, paidOf));
-    $("#sumOkSub").textContent = `${RC.length} استلام`;
+    const H=heldDeps(), heldM=mapBy(H, x=>+x.amount||0);
+    const inM = mapBy(O, paidOf); Object.entries(heldM).forEach(([c,v])=>inM[c]=(inM[c]||0)+v);
+    $("#sumOk").textContent = fmtMap(inM);
+    $("#sumOkSub").textContent = `${RC.length} استلام${H.length?` · منها حجوزات ${fmtMap(heldM)}`:""}`;
+    $("#cntDeposits").textContent = H.length;
     $("#cntReceipts").textContent = RC.length;
     $("#sumOwe").textContent = sums(D, x=>x.status!=="done");
     const owN=D.filter(x=>x.status!=="done").length, owLate=D.filter(isLate).length;
     $("#sumOweSub").textContent = owN ? `${owN} قيد${owLate?` · ${owLate} فات موعده`:""}` : "ما عليك إشي";
-    const cash = mapBy(O, paidOf); Object.entries(mapBy(D, x=>+x.amount||0)).forEach(([c,v])=>cash[c]=(cash[c]||0)-v);
+    const cash = {...inM}; Object.entries(mapBy(D, x=>+x.amount||0)).forEach(([c,v])=>cash[c]=(cash[c]||0)-v);
     $("#sumNet").innerHTML = signedHtml(cash);
     const ifAll = {...cash}; Object.entries(mapBy(O, remOf)).forEach(([c,v])=>ifAll[c]=(ifAll[c]||0)+v);
-    $("#sumNetSub").innerHTML = `اللي انقبض ناقص كل اللي عليك<br>وإذا الكل دفعلك: ${signedHtml(ifAll)}`;
+    $("#sumNetSub").innerHTML = `اللي انقبض ناقص كل اللي عليك${H.length?`<br>منها حجوزات لسى ما سلّمتها: ${fmtMap(heldM)}`:""}<br>وإذا الكل دفعلك: ${signedHtml(ifAll)}`;
     $("#cntOrders").textContent = O.filter(x=>x.status!=="done").length;
     $("#cntDebts").textContent = owN;
     $("#cntContacts").textContent = state.contacts.length;
     $("#people").innerHTML = state.contacts.map(c=>`<option value="${esc(c.name)}">${esc(KINDS[kindOf(c)])}${c.phone?" · "+esc(c.phone):""}</option>`).join("");
-    $("#filters").hidden = state.tab==="contacts" || state.tab==="receipts";
+    $("#filters").hidden = state.tab==="contacts" || state.tab==="receipts" || state.tab==="deposits";
     $("#addBtn").hidden = state.tab==="receipts";
 
     document.querySelectorAll(".tab").forEach(t=>t.setAttribute("aria-selected", t.dataset.tab===state.tab));
@@ -402,17 +413,19 @@ textarea{resize:vertical;min-height:42px}
       let sub;
       if(isR) sub = arr.length ? `استلمت: ${fmtMap(mapBy(arr,x=>x.amount))}` : "0 استلام";
       else if(state.tab==="contacts") sub = `${arr.length} اسم`;
+      else if(state.tab==="deposits"){ const h=arr.filter(x=>(x.status||"held")==="held"); sub = h.length ? `محجوز: ${fmtMap(mapBy(h,x=>+x.amount||0))}` : `${arr.length} حجز`; }
       else { const open=arr.filter(x=>x.status!=="done"); sub = open.length ? `لسى: ${fmtMap(mapBy(open, state.tab==="orders"?remOf:(x=>+x.amount||0)))}` : `${arr.length} قيد`; }
       return `<button class="cat" data-cat="${k}" aria-pressed="${state.cat===k}"><b>${label}</b><span>${sub}</span></button>`;
     }).join("");
     $("#cats").innerHTML = catsHtml;
     if(state.cat!=="all") items=items.filter(x=>kindOf(x)===state.cat);
-    const isC = state.tab==="contacts";
-    if(!isC && !isR && state.filter==="wait") items=items.filter(x=>x.status!=="done");
-    if(!isC && !isR && state.filter==="done") items=items.filter(x=>x.status==="done");
-    if(!isC && !isR && state.filter==="late") items=items.filter(isLate);
+    const isC = state.tab==="contacts", isD = state.tab==="deposits";
+    if(isD) items.sort((a,b)=>{ const ah=(a.status||"held")==="held", bh=(b.status||"held")==="held"; if(ah!==bh) return ah?-1:1; return (b.created||0)-(a.created||0); });
+    if(!isC && !isR && !isD && state.filter==="wait") items=items.filter(x=>x.status!=="done");
+    if(!isC && !isR && !isD && state.filter==="done") items=items.filter(x=>x.status==="done");
+    if(!isC && !isR && !isD && state.filter==="late") items=items.filter(isLate);
     if(isC) items.sort((a,b)=>String(a.name).localeCompare(String(b.name),"ar"));
-    else if(!isR) items.sort((a,b)=>{
+    else if(!isR && !isD) items.sort((a,b)=>{
       const ad=a.status==="done", bd=b.status==="done";
       if(ad!==bd) return ad?1:-1;
       if(!ad){ const x=a.due||"9999", y=b.due||"9999"; if(x!==y) return x<y?-1:1; }
@@ -422,7 +435,9 @@ textarea{resize:vertical;min-height:42px}
     if(!items.length){
       const none = !SRC.length;
       list.innerHTML = none
-        ? (isR
+        ? (isD
+          ? `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>ما في حجوزات</b>لما حدا يعطيك عربون قبل ما تسلّمه، اضغط «+ قيد جديد» واختار «استلمت حجز».</div>`
+          : isR
           ? `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>لسى ما استلمت إشي</b>لما تكبس «تم» على قيد، أو تسجل «استلمت دفعة»، بيطلع هون مين دفعلك وقديش ومتى.</div>`
           : isC
           ? `<div class="empty"><img class="elogo" src="${LOGO}" alt=""><b>لسى ما ضفت ولا اسم</b>اضغط «+ اسم جديد» وسجّل التاجر أو الزبون أو واحد من MOHPTON TEAM مع رقم واتسه، وبعدين بتختاره بسرعة لما تسجل طلب.</div>`
@@ -440,12 +455,12 @@ textarea{resize:vertical;min-height:42px}
         return head + `<article class="entry">
           <div style="min-width:0"><div class="who">${esc(r.name)}</div>${r.service?`<div class="what">${esc(r.service)}</div>`:""}</div>
           <div class="amt" style="color:var(--ok)">+${esc(fmtMoney(r.amount,r.cur))}</div>
-          <div class="meta"><span class="tag k-${kindOf(r)}">${KINDS[kindOf(r)]}</span>${r.part?`<span class="tag part">دفعة</span>`:`<span class="tag">المبلغ كامل</span>`}</div>
+          <div class="meta"><span class="tag k-${kindOf(r)}">${KINDS[kindOf(r)]}</span>${r.dep?`<span class="tag held">حجز${r.dep==="used"?" · صار طلب":""}</span>`:r.part?`<span class="tag part">دفعة</span>`:`<span class="tag">المبلغ كامل</span>`}</div>
         </article>`;
       }).join("");
       return;
     }
-    list.innerHTML = items.map(isC?contactCard:card).join("");
+    list.innerHTML = items.map(isC?contactCard:isD?depCard:card).join("");
   }
 
   function waLink(phone, text){
@@ -463,6 +478,30 @@ textarea{resize:vertical;min-height:42px}
       ? `<span class="confirm">أكيد بدك تحذفه؟ <button class="btn btn-danger" data-act="del-yes" data-id="${x.id}">احذف</button><button class="btn btn-ghost" data-act="del-no">لا</button></span>`
       : `<button class="link" data-act="del" data-id="${x.id}">حذف</button>`;
   }
+  function depCard(d){
+    const st=d.status||"held";
+    const stTag = st==="held" ? `<span class="tag held">لسى ما سلّمته</span>` : st==="used" ? `<span class="tag part">صار طلب ✓</span>` : `<span class="tag">رجّعته${d.closedAt?" "+fmtDate(d.closedAt):""}</span>`;
+    const ret = state.confirmRet===d.id
+      ? `<span class="confirm">رجّعتله ${esc(fmtMoney(d.amount,d.cur))}؟ <button class="btn btn-danger" data-act="ret-yes" data-id="${d.id}">آه رجّعت</button><button class="btn btn-ghost" data-act="ret-no">لا</button></span>`
+      : `<button class="link" data-act="ret" data-id="${d.id}">رجّعتله المصاري</button>`;
+    return `<article class="entry">
+      <div style="min-width:0"><div class="who">${esc(d.name)}</div>${d.reason?`<div class="what">${esc(d.reason)}</div>`:""}</div>
+      <div class="amt" style="color:${st==="returned"?"var(--ink-2)":"var(--gold-ink)"}">${esc(fmtMoney(d.amount,d.cur))}</div>
+      <div class="meta">
+        <span class="tag k-${kindOf(d)}">${KINDS[kindOf(d)]}</span>
+        ${d.date?`<span class="tag">استلمته ${fmtDate(d.date)}</span>`:""}
+        ${stTag}
+        ${d.phone?`<span class="tag" dir="ltr">${esc(d.phone)}</span>`:""}
+      </div>
+      ${d.note?`<div class="note">${esc(d.note)}</div>`:""}
+      <div class="row-actions">
+        ${st==="held"?`<button class="pill done" data-act="dep-order" data-id="${d.id}">حوّله لطلب</button>${ret}`:""}
+        <span class="spacer"></span>
+        <button class="link" data-act="edit" data-id="${d.id}">تعديل</button>
+        ${delBtn(d)}
+      </div>
+    </article>`;
+  }
   function contactCard(c){
     const n=norm(c.name);
     const ords=state.orders.filter(o=>norm(o.name)===n), openO=ords.filter(o=>o.status!=="done");
@@ -476,6 +515,7 @@ textarea{resize:vertical;min-height:42px}
         <span class="tag" style="background:var(--surface-2)">الجرد: ${netHtml(netMap(openO,debs), true)}</span>
         ${openO.length?`<span class="tag">بدي منه: ${sums(openO,()=>true)}</span>`:""}
         ${debs.length?`<span class="tag">بدو مني: ${sums(debs,()=>true)}</span>`:""}
+        ${(()=>{ const h=heldDeps().filter(d=>norm(d.name)===n); return h.length?`<span class="tag held">عنده حجز: ${fmtMap(mapBy(h,x=>+x.amount||0))}</span>`:""; })()}
         ${lateN?`<span class="tag late">${lateN} متأخر</span>`:""}
         <span class="tag">${ords.length+state.debts.filter(d=>norm(d.name)===n).length} قيد</span>
       </div>
@@ -540,13 +580,16 @@ textarea{resize:vertical;min-height:42px}
     $("#dirRow").hidden=isC;
     document.querySelectorAll("#dirRow button").forEach(b=>b.setAttribute("aria-pressed", b.dataset.dir===fc));
     $("#formTitle").textContent = isC ? (state.editing?"تعديل الاسم":"اسم جديد") : (state.editing?"تعديل القيد":"قيد جديد");
-    $("#l-name").textContent = isC?"الاسم":isO?"مين بدك منه؟":"مين بدو منك؟";
+    const isDep=fc==="deposits";
+    $("#l-name").textContent = isC?"الاسم":isO?"مين بدك منه؟":isDep?"مين عطاك الحجز؟":"مين بدو منك؟";
+    $("#l-reason").textContent = isDep?"على شو الحجز؟":"على شو؟";
     $("#l-date").textContent = "التاريخ";
     $("#l-due").textContent = isO?"متى وعدك يدفع؟":"متى لازم تدفعله؟";
     $("#l-status").textContent = isO?"دفعلك؟":"دفعتله؟";
     document.querySelectorAll(".orders-only").forEach(e=>e.hidden=!isO);
-    document.querySelectorAll(".debts-only").forEach(e=>e.hidden=fc!=="debts");
+    document.querySelectorAll(".debts-only").forEach(e=>e.hidden=fc!=="debts"&&!isDep);
     document.querySelectorAll(".money-only").forEach(e=>e.hidden=isC);
+    document.querySelectorAll(".nodep").forEach(e=>e.hidden=isC||isDep);
     $("#f-amount").required = !isC;
   }
   function openForm(item, coll){
@@ -568,7 +611,7 @@ textarea{resize:vertical;min-height:42px}
     $("#form").hidden=false; $("#f-name").focus();
     $("#form").scrollIntoView({block:"nearest"});
   }
-  function closeForm(){ $("#form").hidden=true; state.editing=null; }
+  function closeForm(){ $("#form").hidden=true; state.editing=null; state.fromDeposit=null; }
 
   $("#form").addEventListener("submit", async e=>{
     e.preventDefault();
@@ -585,7 +628,22 @@ textarea{resize:vertical;min-height:42px}
       finally{ $("#saveBtn").disabled=false; }
       return;
     }
+    if(coll==="deposits" && !(state.editing && state.editColl!=="deposits")){
+      const oldD = state.editing ? state.deposits.find(x=>x.id===state.editing) : null;
+      const d = { id: oldD?oldD.id:newId(), created: oldD?.created||Date.now(), kind:$("#f-kind").value,
+        name:$("#f-name").value.trim(), phone:$("#f-phone").value.trim(), reason:$("#f-reason").value.trim(),
+        amount: parseFloat($("#f-amount").value)||0, cur:$("#f-cur").value, date:$("#f-date").value||today(),
+        note:$("#f-note").value.trim(), status: oldD?.status||"held", orderId: oldD?.orderId||"", closedAt: oldD?.closedAt||"" };
+      if(!d.name){ $("#f-name").focus(); return; }
+      $("#saveBtn").disabled=true;
+      try{ await put("deposits",d); closeForm(); state.tab="deposits"; render(); toast("انحفظ الحجز ✓"); }
+      catch(err){ toast("ما انحفظ، جرّب كمان مرة"); }
+      finally{ $("#saveBtn").disabled=false; }
+      return;
+    }
+    if(coll==="deposits"){ toast("القيد هاد ما بيتحوّل لحجز، سجّل حجز جديد"); return; }
     const old = state.editing ? state[state.editColl].find(x=>x.id===state.editing) : null;
+    if(old && state.editColl==="deposits"){ toast("الحجز بيتحوّل لطلب من زر «حوّله لطلب»"); return; }
     const moved = old && state.editColl!==coll ? state.editColl : null;
     const item = {
       id: old?old.id:newId(), created: old?.created||Date.now(),
@@ -595,14 +653,18 @@ textarea{resize:vertical;min-height:42px}
       date: $("#f-date").value, due: $("#f-due").value, note: $("#f-note").value.trim(),
       status: state.status,
     };
+    const dep = isO && !old && state.fromDeposit ? state.deposits.find(x=>x.id===state.fromDeposit) : null;
     if(isO){ item.payments = (old && state.editColl==="orders" && old.payments) || [];
+      if(dep) item.payments=[{amount:+dep.amount||0, date:dep.date||today(), fromDeposit:dep.id}];
       if(item.status!=="done" && paySum(item) >= item.amount - 1e-9 && item.amount>0) item.status="done";
       item.service=$("#f-service").value.trim(); item.platform=$("#f-platform").value; item.gid=$("#f-gid").value.trim(); }
     else { item.reason=$("#f-reason").value.trim(); }
     item.paidAt = item.status==="done" ? (old?.status==="done" && old.paidAt ? old.paidAt : today()) : "";
     if(!item.name){ $("#f-name").focus(); return; }
     $("#saveBtn").disabled=true;
-    try{ await put(coll,item); if(moved) await remove(moved, old.id); closeForm(); state.tab=coll; render(); toast(isO?"انحفظ: بدك منه ✓":"انحفظ: بدو منك ✓"); }
+    try{ await put(coll,item); if(moved) await remove(moved, old.id);
+      if(dep) await put("deposits",{...dep, status:"used", orderId:item.id, closedAt:today()});
+      closeForm(); state.tab=coll; render(); toast(isO?"انحفظ: بدك منه ✓":"انحفظ: بدو منك ✓"); }
     catch(err){ toast(err?.code==="quota_exceeded"?"المساحة امتلت، احذف قيود قديمة":"ما انحفظ، جرّب كمان مرة"); }
     finally{ $("#saveBtn").disabled=false; }
   });
@@ -624,6 +686,22 @@ textarea{resize:vertical;min-height:42px}
     const b=e.target.closest("[data-act]"); if(!b) return;
     const coll=state.tab, id=b.dataset.id, act=b.dataset.act;
     const item = id && (state[coll]||[]).find(x=>x.id===id);
+    if(act==="dep-order" && item){
+      state.tab="orders"; state.cat="all"; state.confirmDel=null; render();
+      openForm({name:item.name, phone:item.phone, kind:kindOf(item), service:item.reason, cur:item.cur, amount:item.amount}, "orders");
+      state.fromDeposit=item.id;
+      $("#picked").textContent=`✓ بينخصم من الحجز ${fmtMoney(item.amount,item.cur)}. اكتب سعر الطلب كامل`; $("#picked").hidden=false;
+      return;
+    }
+    if(act==="ret" && item){ state.confirmRet=id; render(); return; }
+    if(act==="ret-no"){ state.confirmRet=null; render(); return; }
+    if(act==="ret-yes" && item && !busy.has(id)){
+      busy.add(id); state.confirmRet=null;
+      try{ await put("deposits",{...item, status:"returned", closedAt:today()}); toast("انسجل إنك رجّعت الحجز"); }
+      catch(err){ toast("ما انحفظ، جرّب كمان مرة"); }
+      finally{ busy.delete(id); render(); }
+      return;
+    }
     if(act==="pay" && item){ state.payFor=id; render(); const i=$("#pay-amt"); if(i){ i.focus(); i.select(); } return; }
     if(act==="pay-no"){ state.payFor=null; render(); return; }
     if(act==="pay-save" && item && !busy.has(id)){
@@ -651,7 +729,7 @@ textarea{resize:vertical;min-height:42px}
     if(act==="del-yes" && id){ state.confirmDel=null; try{ await remove(coll,id); toast("انحذف"); }catch(err){ toast("ما انحذف، جرّب كمان مرة"); } }
   });
 
-  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{ state.tab=t.dataset.tab; state.confirmDel=null; state.payFor=null; closeForm(); render(); }));
+  document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{ state.tab=t.dataset.tab; state.confirmDel=null; state.payFor=null; state.confirmRet=null; closeForm(); render(); }));
   document.querySelectorAll(".chip").forEach(c=>c.addEventListener("click",()=>{ state.filter=c.dataset.f; render(); }));
   $("#cats").addEventListener("click", e=>{ const c=e.target.closest("[data-cat]"); if(!c) return; state.cat=c.dataset.cat; render(); });
   $("#q").addEventListener("input", e=>{ state.q=e.target.value; render(); });
