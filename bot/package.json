@@ -1,0 +1,17 @@
+{
+  "name": "target-coins-bot",
+  "version": "1.0.0",
+  "description": "بوت رد تلقائي لـ TARGET COINS على واتساب وتلجرام",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/index.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "pino": "10.4.0",
+    "qrcode-terminal": "0.12.0"
+  }
+}
